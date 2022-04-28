@@ -1,0 +1,500 @@
+<!--
+    THIS EXAMPLE WAS DOWNLOADED FROM https://echarts.apache.org/examples/zh/editor.html?c=tree-vertical
+-->
+<!DOCTYPE html>
+<html style="height: 100%">
+
+<head>
+  <meta charset="utf-8">
+  <!-- 本地加载 -->
+  <script type="text/javascript" src="static/echarts.min.js"></script>
+  <script src="static/jquery.min.js"></script>
+  <script src="static/popper.min.js"></script>
+  <link rel="stylesheet" href="static/bootstrap.min.css">
+  <script src="static/bootstrap.min.js"></script>
+  <script src="static/bootbox.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="static/sweetalert.css">
+  <script type="text/javascript" src="static/sweetalert-dev.js"></script>
+
+  <!-- 在线加载 -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.3.2/echarts.min.js"
+    integrity="sha512-weWXHm0Ws2cZKjjwugRMnnOAx9uCP/wUVf84W7/fXQimwYUK28zPDGPprDozomQLpKv6U99xN9PI9+yLI9qxNw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"
+    integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.5/umd/popper.min.js"
+    integrity="sha512-8cU710tp3iH9RniUh6fq5zJsGnjLzOWLWdZqBMLtqaoZUA6AWIE34lwMB3ipUNiTBP5jEZKY95SfbNnQ8cCKvA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.1/css/bootstrap.min.css"
+    integrity="sha512-T584yQ/tdRR5QwOpfvDfVQUidzfgc2339Lc8uBDtcp/wYu80d7jwBgAxbyMh0a9YM9F8N3tdErpFI8iaGx6x5g=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.1/js/bootstrap.min.js"
+    integrity="sha512-UR25UO94eTnCVwjbXozyeVd6ZqpaAE9naiEUBK/A+QDbfSTQFhPGj5lOR6d8tsgbBk84Ggb5A3EkjsOgPRPcKA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/5.5.2/bootbox.min.js"
+    referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-sweetalert/1.0.1/sweetalert.min.js"
+    integrity="sha512-MqEDqB7me8klOYxXXQlB4LaNf9V9S0+sG1i8LtPOYmHqICuEZ9ZLbyV3qIfADg2UJcLyCm4fawNiFvnYbcBJ1w=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-sweetalert/1.0.1/sweetalert.min.css"
+    integrity="sha512-hwwdtOTYkQwW2sedIsbuP1h0mWeJe/hFOfsvNKpRB3CkRxq8EW7QMheec1Sgd8prYxGm1OM9OZcGW7/GUud5Fw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" /> -->
+
+  <!-- 右键菜单项相关的样式 -->
+  <style>
+    .menu {
+      /*这个样式不写，右键弹框会一直显示在画布的左下角*/
+      position: absolute;
+      background: rgba(3, 3, 3, 0.6);
+      border-radius: 5px;
+      left: -99999px;
+      top: -999999px;
+    }
+
+    .menu ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .menu ul li {
+      padding: 5px 10px;
+      color: #ffff;
+      border-bottom: 1px dashed #ffffff;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .menu ul li:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+
+<body style="height: 100%; margin: 0">
+
+  <input type="button" value="导入策略" onclick="importFile()" />
+  <input type="file" id="importData" style="display:none" />
+
+  <input type="button" value="导出策略" id="exportData" onclick="exportFile()" />
+  <a href="#" id="downloadA"></a>
+
+  <input type="button" value="检查策略" id="checkPolicy" onclick="checkPolicy()" />
+
+  <input type="button" value="操作说明" id="help" onclick="help()" />
+
+  <div id="container" style="height: 80%; width: 100%;"> </div>
+
+  <!--右键弹出菜单-->
+  <div id="rightMenu" class="menu" style="display:none;">
+    <ul>
+      <li onclick="editNode()">编辑节点</li>
+      <li onclick="addNode()">增加子节点</li>
+      <li onclick="deleteNode()">删除当前节点</li>
+    </ul>
+  </div>
+
+  <script type="text/javascript">
+    var dom = document.getElementById("container");
+    var myChart = echarts.init(dom);
+    myChart.hideLoading();
+    // myChart.showLoading();
+    var option;
+    var data = {
+      "name": 0,    // name作为每个节点的索引
+      "value": "root",   // value如果是内部节点则表示gate形式"(t,n)"，如果是叶子节点则表示属性值"A"
+    };
+
+    String.format = function (src) {
+      if (arguments.length == 0) return null;
+      var args = Array.prototype.slice.call(arguments, 1);
+      return src.replace(/\{(\d+)\}/g, function (m, i) {
+        return args[i];
+      });
+    };
+
+    var allNames = [];
+
+    function findAllNames(data) {
+      allNames.push(data.name);
+      if (data.children !== undefined && data.children.length > 0) {
+        for (var i = 0; i < data.children.length; i++) {
+          findAllNames(data.children[i]);
+        }
+      }
+    }
+
+    function help() {
+      swal(
+        {
+          title: "操作说明",
+          text: "<p style='text-align:left'>1.右键单击节点可以编辑节点、增加子节点以及删除当前节点（包括其所有子节点）。</p> \
+      <p style='text-align:left'>2.每个节点对应的一个唯一的name值作为索引，鼠标移动到该节点时会浮窗显示name值。name值由系统自动生成，用户无需添加。根节点的name值固定为0。</p> \
+      <p style='text-align:left'>3.每个节点对应一个value值，作为该节点的显示标签。如果为内部节点，该value值表示门，比如(2,3),其中第一个值为门限值，第二个值为叶子节点个数，括号用英文括号，两个值用英文逗号隔开；如果为叶子节点，该value值表示属性，比如A。用户可以根据需要，编辑节点的value值。</p>  \
+      <p style='text-align:left'>4.支持策略的导入和导出，导入后、导出前会检查策略的合法性。</p>   \      ",
+          html: true
+        }
+      )
+    }
+
+    // 导入json数据文件，并加载显示
+    function importFile() {
+      $("#importData").click();
+      $("#importData").change(function () {
+        var selectedFile = $('#importData').prop('files');
+        var file = selectedFile[0];
+        var reader = new FileReader();
+        reader.readAsText(file, "UTF-8");
+        reader.onload = function (evt) {
+          data = JSON.parse(evt.target.result); //要先将字符串类型转换为json对象
+          if (data.name != 0) {
+            swal("导入失败", "根节点的name值必须为0");
+            return;
+          }
+          createGraph(data);
+          // 导入数据并渲染后，检测策略是否合法
+          allNameForCheck = [];
+          checkPolicyValidity(data);
+        }
+      });
+    }
+
+    // 导出数据为Json文件，供其他程序调用
+    function exportFile() {
+      //导出策略之前检测策略是否合法
+      allNameForCheck = [];
+      if (checkPolicyValidity(data) == false) {
+        return
+      }
+      jsonStr = JSON.stringify(data, undefined, 2); //  把 JSON 对象转换为格式化后的字符串
+      // jsonStr = JSON.stringify(data); //  
+      var blob = new Blob([jsonStr]); //  创建 blob 对象
+      var link = document.querySelector("#downloadA"); //  利用一个a标签的download属性来下载文件，选择链接
+      link.href = URL.createObjectURL(blob); //  创建一个 URL 对象并传给 a 的 href
+      link.download = "config.json"; //  设置下载的默认文件名
+      link.click(); //  点击下载链接
+    }
+
+    var allNameForCheck = [];
+
+    function checkPolicy() {
+      allNameForCheck = [];
+      if (checkPolicyValidity(data) == true) {
+        swal("合法策略");
+      }
+    }
+
+    function checkPolicyValidity(data) {
+      if (allNameForCheck.includes(data.name)) {
+        var warningMessage = "内部节点：name={0} value={1} 的name值重复";
+        swal("非法策略", String.format(warningMessage, data.name, data.value));
+      } else {
+        allNameForCheck.push(data.name);
+      }
+
+      var value = data.value.trim();
+      // 对于内部节点
+      if (data.children !== undefined && data.children.length > 0) {
+        //应该以"("开头，且以")"结尾
+        if (value[0] != "(" || value[value.length - 1] != ")") {
+          var warningMessage = "内部节点：name={0} value={1} 应该用门表示";
+          swal("非法策略", String.format(warningMessage, data.name, data.value, data.children.length));
+          return false;
+        }
+        //gate中前一个值应该小于等于后一个值
+        if (value.substring(value.indexOf("(") + 1, value.indexOf(",")) == 0) {
+          var warningMessage = "内部节点：name={0} value={1} 的门限值不能为0";
+          swal("非法策略", String.format(warningMessage, data.name, data.value));
+          return false;
+        }
+        if (value.substring(value.indexOf("(") + 1, value.indexOf(",")) > value.substring(value.indexOf(",") + 1, value.length - 1)) {
+          var warningMessage = "内部节点：name={0} value={1} 的门限值不能大于叶子节点总数";
+          swal("非法策略", String.format(warningMessage, data.name, data.value));
+          return false;
+        }
+
+        //gate中后一个值应该等于叶子节点的个数
+        if (value.substring(value.indexOf(",") + 1, value.length - 1) != data.children.length) {
+          var warningMessage = "内部节点：name={0} value={1} 应该有{2}个子节点";
+          swal("非法策略", String.format(warningMessage, data.name, data.value, data.children.length));
+          return false;
+        }
+        for (var i = 0; i < data.children.length; i++) {
+          var flag = checkPolicyValidity(data.children[i]);
+          if (flag == false) {
+            return false;
+          }
+        }
+      } else {
+        //如果是叶子节点，则应该是属性值
+        if (value[0] == "(") {
+          var warningMessage = "叶子节点：name={0} value={1} 应该用属性表示";
+          swal("非法策略", String.format(warningMessage, data.name, data.value));
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+
+    $("#container").bind("contextmenu", function () { return false; });//防止浏览器默认菜单弹出
+
+    var tempParams = null;    //用来存储右键点击时的参数，用于后续操作
+    myChart.on("contextmenu", function (params) {
+      tempParams = params;
+      $('#rightMenu').css({
+        'display': 'block',
+        'left': params.event.offsetX + 40,
+        'top': params.event.offsetY + 40
+      });
+    });
+    // 点击画布后隐藏菜单
+    $('#container').click(function () {
+      $('#rightMenu').css({
+        'display': 'none',
+        'left': '-9999px',
+        'top': '-9999px'
+      });
+    });
+
+
+    function editNode() {
+      $('#rightMenu').css({
+        'display': 'none',
+        'left': '-9999px',
+        'top': '-9999px'
+      });
+
+      bootbox.prompt({
+        size: "medium",
+        title: "编辑当前节点",
+        value: tempParams.value,
+        required: true,
+        callback: function (result) {
+          if (result === null) {
+            // Prompt dismissed
+          } else {
+            changeNodeValue(data, tempParams.name, result);
+            createGraph(data);
+          }
+        }
+      });
+
+    }
+
+    function changeNodeValue(data, targetNodeName, inputValue) {
+      if (data.name == targetNodeName) {
+        data.value = inputValue;
+        return true;
+      } else {
+        if ((data.children !== undefined && data.children.length > 0)) {
+          for (var i = 0; i < data.children.length; i++) {
+            var flag = changeNodeValue(data.children[i], targetNodeName, inputValue);
+            if (flag == true) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+
+
+    function addNode() {
+      $('#rightMenu').css({
+        'display': 'none',
+        'left': '-9999px',
+        'top': '-9999px'
+      });
+
+      bootbox.prompt({
+        size: "medium",
+        title: "添加子节点",
+        placeholder: "请输入门限比如(1,3)或者属性值比如A",
+        required: true,
+        callback: function (result) {
+          if (result === null) {
+            // Prompt dismissed
+          } else {
+            //首先获得所有节点的name
+            allNames = [];
+            findAllNames(data);
+            //随机生成一个值作为新节点的name，如果该值已经被使用，则重新生成
+            var nodeName = Math.floor(Math.random() * (10000 + 1));
+            while (allNames.includes(nodeName)) {
+              nodeName = Math.floor(Math.random() * (10000 + 1));
+            }
+            var child = {
+              "name": nodeName,
+              "value": result,
+            };
+            addChildToData(data, tempParams.name, child);
+            createGraph(data);
+          }
+        }
+      });
+    }
+
+
+    function addChildToData(data, targetNodeName, child) {
+      if (data.name == targetNodeName) {
+        if (data.children === undefined) {
+          data["children"] = [];
+          data.children.push(child);
+          data.value = "(1,1)";
+        } else {
+          data.children.push(child);
+          data.value = data.value.replace(/,\d+\)$/, String.format(",{0})", data.children.length));
+        }
+        return true;
+      } else {
+        if ((data.children !== undefined && data.children.length > 0)) {
+          for (var i = 0; i < data.children.length; i++) {
+            var flag = addChildToData(data.children[i], targetNodeName, child);
+            if (flag == true) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+
+    function deleteNode() {
+      $('#rightMenu').css({
+        'display': 'none',
+        'left': '-9999px',
+        'top': '-9999px'
+      });
+
+      var parentNodeName = tempParams.treeAncestors.slice(-2, -1)[0].name;
+      if (parentNodeName == '') {
+        swal("根节点无法删除！");
+        return
+      }
+
+      deleteNodesAndChildren(data, tempParams.name, parentNodeName);
+      createGraph(data);
+    }
+
+
+    function deleteNodesAndChildren(data, targetNodeName, parentNodeName) {
+      if (data.name == parentNodeName) {
+        for (var i = 0; i < data.children.length; i++) {
+          if (data.children[i].name == targetNodeName) {
+            data.children.splice(i, 1);
+            data.value = data.value.replace(/,\d+\)$/, String.format(",{0})", data.children.length));
+            return true;
+          }
+        }
+      } else {
+        if ((data.children !== undefined && data.children.length > 0)) {
+          for (var i = 0; i < data.children.length; i++) {
+            var flag = deleteNodesAndChildren(data.children[i], targetNodeName, parentNodeName);
+            if (flag == true) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+
+    function getOption(data) {
+      option = {
+        title: {
+          text: '访问树结构',
+          textStyle: {
+            fontSize: 40
+          },
+          left: 'center',
+          top: 'bottom'
+        },
+
+        tooltip: {
+          trigger: 'item',
+          triggerOn: 'mousemove',
+          formatter: '{b}'   //提示框的内容 b表示name值，c表示value值
+        },
+
+
+        animation: true,
+        animationDuration: 100,
+        animationDurationUpdate: 1000,
+
+        series: [
+          {
+            type: 'tree',   //树形图
+            data: [data],   //数据来源
+
+            left: '2%',
+            right: '2%',
+            top: '15%',
+            bottom: '20%',  //指定树的位置
+
+            //如果是内部节点，用圆形表示；如果是叶子节点，用方形表示。
+            symbol: function (value, params) {
+              if (params.data.children !== undefined && params.data.children.length > 0) {
+                return 'rect';
+              } else {
+                return 'circle';
+              }
+            },
+            symbolSize: [130, 100],   //图标大小
+            orient: 'vertical',   //树的方向
+            expandAndCollapse: false,   //禁用点击节点扩展和收缩功能
+            initialTreeDepth: -1,
+
+            // 全局标签选项
+            label: {
+              position: 'inside',
+              rotate: 0,
+              verticalAlign: 'middle',
+              align: 'middle',
+              fontSize: 50,
+              // formatter: function(params) {
+              //   console.log(params)
+              //   return params.value;
+              // },
+              formatter: '{c}'
+            },
+
+            //单独针对叶子节点进行设置
+            leaves: {
+              itemStyle: {
+                color: "red"
+              }
+            },
+            lineStyle: {
+              curveness: 0.0       // 曲率为0，即直线     
+            }
+          }
+        ]
+      };
+      return option;
+    }
+
+    function createGraph(data) {
+
+      //设置option样式
+      var option = getOption(data);
+      myChart.showLoading();
+      myChart.hideLoading();
+      //使用Option填充图形
+      myChart.setOption(option, true);
+
+    }
+
+    createGraph(data);
+
+  </script>
+
+
+</body>
+
+</html>
